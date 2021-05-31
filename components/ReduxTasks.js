@@ -1,63 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { connect } from 'react-redux';
+
+import { useCounter, useFocus } from '../hooks';
 
 import TaskList from './TaskList';
 
 function ReduxTasks(props) {
   const [name, setName] = useState('');
-  const [time, setTime] = useState(0);
-  const [counting, setCounting] = useState(false);
+  const { count, isCounting, startCount, stopCount, resetCount } = useCounter({
+    count: 0,
+    isCounting: false,
+    delay: 500
+  })
 
-  const { dispatch } = props;
+  const { dispatch, addTask } = props;
 
-  const nameInputRef = useRef(null)
+  const nameInputRef = useRef(null);
+
+  const setNameInputFocus = useFocus({ ref: nameInputRef });
 
   const clearInputs = () => {
     setName('');
-    setTime(0);
-  }
+    resetCount();
+  };
 
   const onChangeName = ({ value }) => {
     setName(value);
   };
 
-  const onChangeTime = ({ value }) => {
-    setTime(value);
-  };
-
   const onStart = () => {
-    setCounting(true);
+    startCount();
   };
 
   const onStop = () => {
-    setCounting(false);
-    dispatch({
-      type: 'task/add',
-      payload: { id: props.newTaskId + 1, name, time }
-    });
+    stopCount();
+    addTask({ id: props.newTaskId, name, time: count })
     clearInputs();
-    nameInputRef.current.focus();
+    setNameInputFocus();
   };
 
   const handleInputChange = ({ target: { value } }) => (handler) => {
     if (handler) return handler({ value })
   };
-
-  useEffect(() => {
-    let counter;
-
-    if (counting) {
-      counter = setInterval(() => {
-        setTime((prevTime) => prevTime + 1);
-      }, 1000);
-    }
-
-    return () => clearInterval(counter)
-  });
-
-  useEffect(() => {
-    nameInputRef.current.focus()
-  }, [])
 
   const renderForm = () => (
     <div className="Form">
@@ -65,11 +49,11 @@ function ReduxTasks(props) {
         <input ref={nameInputRef} id="name" value={name} onChange={(e) => handleInputChange(e)(onChangeName)} />
       </div>
       <div className="FormGroup">
-        <input readOnly id="time" value={time} type="number" min={0} onChange={(e) => handleInputChange(e)(onChangeTime)} />
+        <input readOnly id="time" value={count} type="number" min={0} /* onChange={(e) => handleInputChange(e)(onChangeTime)} */ />
       </div>
       <div className="FormActions">
-        <button type="button" disabled={counting} onClick={onStart}>Start</button>
-        <button type="button" disabled={!counting} onClick={onStop}>Stop</button>
+        <button type="button" disabled={isCounting} onClick={onStart}>Start</button>
+        <button type="button" disabled={!isCounting} onClick={onStop}>Stop</button>
       </div>
     </div>
   );
@@ -83,7 +67,13 @@ function ReduxTasks(props) {
 }
 
 const mapStateToProps = ({ rootState }) => ({
-  newTaskId: rootState.tasks.length
-})
+  newTaskId: rootState.tasks.length + 1
+});
 
-export default connect(mapStateToProps)(ReduxTasks);
+const mapDispatchToProps = (dispatch) => {
+  return {
+    addTask: (newTask) => dispatch({ type: 'task/add', payload: newTask })
+  }
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(ReduxTasks);
